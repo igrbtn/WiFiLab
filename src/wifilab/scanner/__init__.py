@@ -21,6 +21,8 @@ class ScannerError(Exception):
 
 class Scanner:
     backend = "none"
+    # True when the backend may hand back the OS's earlier results instead of a new scan (CoreWLAN does).
+    may_repeat = False
 
     def scan(self, position: tuple[float, float] | None = None) -> dict:
         """One active scan. position (metres) only steers the fake backend's simulated floor."""

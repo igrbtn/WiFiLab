@@ -9,7 +9,8 @@ It is a standalone fork of the Wi-Fi features of FieldTab (a field engineer tabl
 analysis logic, the engineering heatmaps and the `fieldtab.plan/1` floor plan format are shared, and FieldTab tablet
 survey exports open in WiFiLab directly.
 
-The UI is a local web app at `http://127.0.0.1:8097/`, started from a small menubar app (`WiFiLab.app`).
+The UI is a local web app on `127.0.0.1` (a random free port, opened in your browser), started from a small menubar
+app (`WiFiLab.app`).
 
 ## Features
 
@@ -19,8 +20,11 @@ The UI is a local web app at `http://127.0.0.1:8097/`, started from a small menu
 - **Background scanning** with a configurable interval and a scan history in SQLite
   (`~/Library/Application Support/WiFiLab`), pruned after 14 days by default. Clear errors when Wi-Fi is off or the
   radio is busy (falls back to the system's cached scan).
-- **Live AP table** with search, band / security / signal filters, sortable columns, vendor by MAC prefix (bundled
-  OUI subset, extendable), per-AP details and a signal-over-time chart.
+- **Live AP table** with search, band / security / signal filters, sortable columns, vendor by MAC prefix, per-AP
+  details and a signal-over-time chart.
+- **Vendor database**: the full public IEEE registries (MA-L, MA-M and MA-S, about 54,000 prefixes, longest-prefix
+  match) bundled with the app and updatable from Settings > Update vendor database. Randomized (locally
+  administered) BSSIDs are shown as "Private (randomized)"; your own names in `<data dir>/oui.csv` win.
 - **Channel graphs** for 2.4, 5 and 6 GHz: every AP as an arc over the channels it really occupies (40/80/160 MHz
   blocks), coloured per SSID; channel load bars; recommendations (least loaded of 1/6/11, best non-DFS 20/40/80 MHz
   on 5 GHz, best PSC channel on 6 GHz); co-channel congestion and partially overlapping pairs.
@@ -31,7 +35,10 @@ The UI is a local web app at `http://127.0.0.1:8097/`, started from a small menu
   stores the point. Place access points on the plan and bind them to the measured radios.
 - **Engineering heatmaps** (inverse-distance weighting with fade-out): signal of the strongest AP, one SSID, one AP,
   an AP group; serving AP zones; SNR; AP count; channel overlap. PNG export.
-- **Reports**: summary, issues found (weak and missing coverage, low SNR, co-channel congestion, partial overlap,
+- **Reports**: every report of a survey with measured points carries its heatmaps (strongest AP, target SSID, SNR,
+  AP count, channel overlap, serving zones and each placed AP) over the floor plan with legend and scale, in the
+  browser, in the standalone HTML and in Word (rendered on the server when the browser does not send them); the live
+  report shows the latest survey with points. Plus summary, issues found (weak and missing coverage, low SNR, co-channel congestion, partial overlap,
   open / WEP / WPA1 networks, hidden SSIDs, 40 MHz and off-1/6/11 channels on 2.4 GHz), heatmaps, channel plan and AP
   inventory. Print to PDF from the browser, Word (.docx), CSV and JSON.
 - **FieldTab import**: tablet `wifi-survey` JSON/CSV, `wifi-map` JSON (metre maps and older cell grids), session
@@ -40,13 +47,15 @@ The UI is a local web app at `http://127.0.0.1:8097/`, started from a small menu
 
 ## Screenshots
 
-Placeholders, to be added:
+All screenshots use the built-in simulated scanner (`WIFILAB_SCANNER=fake`): every network name and address in them
+is made up.
 
-- `docs/screenshots/live.png`: live AP table with connection card
-- `docs/screenshots/channels.png`: 2.4 / 5 GHz channel graphs and load bars
-- `docs/screenshots/survey.png`: survey heatmap with placed APs
-- `docs/screenshots/plan.png`: floor plan editor
-- `docs/screenshots/report.png`: printable report
+| | |
+|---|---|
+| ![Live AP table](docs/screenshots/live.png) Live AP table with the connection card and quick issues | ![Channels](docs/screenshots/channels.png) Channel graphs and load bars |
+| ![Find AP](docs/screenshots/find-ap.png) Find AP: RSSI meter while walking | ![Floor plan editor](docs/screenshots/plan-editor.png) Floor plan editor |
+| ![Survey heatmap](docs/screenshots/heatmap-rssi.png) Survey heatmap: signal of one SSID, placed APs | ![Channel overlap](docs/screenshots/heatmap-overlap.png) Channel overlap heatmap |
+| ![Report](docs/screenshots/report.png) Report with issues and coverage heatmaps | |
 
 ## Requirements
 
@@ -74,13 +83,19 @@ From source, without the bundle:
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"            # or: pip install ".[dev]"
-wifilab web                        # UI only, http://127.0.0.1:8097/
+wifilab web                        # UI only, on a random free port (printed in the log)
+wifilab web --port 8197            # or a fixed port (also WIFILAB_PORT)
+wifilab url                        # URL of the running instance
 wifilab scan                       # one scan printed in the terminal
 WIFILAB_SCANNER=fake wifilab web   # simulated floor, works anywhere
 ```
 
 Configuration is optional, through environment variables (see `.env.example`): port, data folder, scanner backend,
 scan interval, history retention.
+
+The server listens on `127.0.0.1` only, on a free port picked at start unless `--port` or `WIFILAB_PORT` fixes one.
+The running URL is written to `server.json` in the data folder (removed on exit); starting WiFiLab again while it runs
+just opens the running instance.
 
 ## Location Services permission
 
@@ -105,7 +120,10 @@ The app bundle is signed ad hoc. Rebuilding it with a different launcher version
    point appears. Repeat in a walking pattern, roughly every 2-4 m.
 3. Place AP: click where an access point hangs and pick the measured radio it is. This enables the serving AP and
    per-AP views.
-4. Report: choose the SSID the coverage is judged for, then Print / PDF, Word, CSV or JSON.
+4. Report: choose the SSID the coverage is judged for, then Print / PDF, Word, HTML, CSV or JSON.
+
+A practical walk-through for a real walking survey (plan, scale, point spacing, timing, AP placement, reading the
+maps): [docs/SURVEY_GUIDE.md](docs/SURVEY_GUIDE.md).
 
 ## Development
 
@@ -118,6 +136,12 @@ ruff check .
 Layout: `src/wifilab/` (FastAPI app `web.py`, `scanner/` backends, `analysis.py`, `store.py`, `projects.py`,
 `report.py`, `fieldtab.py` import), `src/wifilab/static/` (vanilla JS UI, no build step), `tests/`,
 `scripts/build_app.sh` (app bundle). Floor plan format: [docs/PLAN_FORMAT.md](docs/PLAN_FORMAT.md).
+
+## Data sources
+
+Vendor names come from the IEEE Registration Authority's public MAC address registries (MA-L `oui.csv`, MA-M
+`mam.csv`, MA-S `oui36.csv` from standards-oui.ieee.org), compacted to ASCII short names by
+`scripts/update_oui.py`, which also refreshes the bundled `src/wifilab/data/oui.tsv.gz`.
 
 ## License
 

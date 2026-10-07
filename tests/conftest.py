@@ -13,7 +13,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 @pytest.fixture
 def cfg(tmp_path):
-    return config.Config(host="127.0.0.1", port=8097, data_dir=tmp_path, scanner="fake", scan_interval=15,
+    return config.Config(host="127.0.0.1", port=0, data_dir=tmp_path, scanner="fake", scan_interval=15,
                          retention_days=14, autoscan=False)
 
 

@@ -71,6 +71,7 @@ def _str(v) -> str:
 
 class CoreWLANScanner(Scanner):
     backend = "corewlan"
+    may_repeat = True
 
     def __init__(self) -> None:
         self._client = CoreWLAN.CWWiFiClient.sharedWiFiClient()

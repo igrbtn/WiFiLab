@@ -41,6 +41,7 @@ class ScanService:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._last_prune = 0.0
+        self._point_fp: frozenset | None = None
 
     def start(self) -> None:
         if self._thread is None:
@@ -79,6 +80,26 @@ class ScanService:
                 self.store.add_scan(res)
         else:
             self.fails += 1
+        return res
+
+    def scan_fresh(self, position=None, wait: float = 12.0, step: float = 2.0) -> dict:
+        """A scan for a survey point. CoreWLAN answers repeated scans from the OS cache for several seconds (and
+        falls back to cachedScanResults when throttled), so two points taken quickly would carry the same data:
+        rescan until the result differs from the previous point's, for up to `wait` seconds, else mark it stale."""
+        deadline = time.time() + wait
+        while True:
+            res = self.scan_now(position, store=False)
+            if not res["ok"] or not self.scanner.may_repeat:
+                break
+            fp = frozenset((a.get("bssid"), a.get("rssi")) for a in res["aps"])
+            stale = bool(res.get("cached")) or fp == self._point_fp
+            if not stale or time.time() + step > deadline:
+                res["stale"] = stale
+                self._point_fp = fp
+                break
+            time.sleep(step)
+        if res["ok"]:
+            self.store.add_scan(res)
         return res
 
     def _loop(self) -> None:

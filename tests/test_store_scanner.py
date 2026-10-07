@@ -57,9 +57,39 @@ def test_scan_service_counts_failures():
     assert not res["ok"] and "radio exploded" in res["error"] and svc.fails == 1
 
 
+def test_scan_fresh_retries_repeated_results():
+    class Repeating(FakeScanner):
+        may_repeat = True
+
+        def __init__(self, fresh_after):
+            super().__init__()
+            self.calls, self.fresh_after = 0, fresh_after
+
+        def scan(self, position=None):
+            self.calls += 1
+            res = super().scan((5, 4))
+            if self.calls > self.fresh_after:
+                res["aps"][0]["rssi"] -= self.calls
+            return res
+
+    sc = Repeating(fresh_after=2)
+    store = Store(":memory:")
+    svc = ScanService(sc, store)
+    first = svc.scan_fresh(wait=1, step=0.01)
+    assert not first["stale"] and sc.calls == 1
+    again = svc.scan_fresh(wait=1, step=0.01)
+    assert not again["stale"] and sc.calls == 3 and store.scan_count() == 2
+    sc.fresh_after = 99
+    svc.scan_fresh(wait=0.05, step=0.01)
+    sc.calls = 0
+    stuck = svc.scan_fresh(wait=0.05, step=0.01)
+    assert stuck["stale"] and sc.calls >= 2
+
+
 def test_oui_vendor():
-    assert oui.vendor("24:DE:C6:00:00:01") == "Aruba (HPE)"
-    assert oui.vendor("02:11:22:33:44:55") == "(locally administered)"
+    assert oui.vendor("00:00:0C:00:00:01") == "Cisco"
+    assert oui.vendor("02:11:22:33:44:55") == "Private (randomized)"
+    assert oui.info()["entries"] > 10000
     assert oui.vendor("") == ""
 
 

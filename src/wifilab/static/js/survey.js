@@ -204,6 +204,7 @@ function measureTab(proj) {
       sel = r.point;
       const best = r.point.aps[0];
       info.textContent = `Point ${points.length} saved at ${fmtM(m.x)}, ${fmtM(m.y)} m: ${r.point.aps.length} BSSIDs, strongest ${best ? best.rssi + " dBm (" + (best.ssid || "hidden") + ")" : "none"}.`;
+      if (r.warning) toast(r.warning, "info", 12000);
       rebuildTargets();
       showSide();
     } catch (e) { toast(e.message, "err", 9000); info.textContent = e.message; }

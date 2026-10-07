@@ -21,10 +21,19 @@ def _int(name: str, default: int, lo: int, hi: int) -> int:
     return min(max(v, lo), hi)
 
 
+def _port(raw) -> int:
+    """0 (random free port) unless a valid unprivileged port is given."""
+    try:
+        v = int(raw)
+    except (TypeError, ValueError):
+        return 0
+    return v if 1024 <= v <= 65535 else 0
+
+
 @dataclass
 class Config:
     host: str
-    port: int
+    port: int             # 0 = a random free port (default); the actual one is in <data dir>/server.json
     data_dir: Path
     scanner: str          # auto | corewlan | fake
     scan_interval: int    # seconds between background scans
@@ -40,7 +49,7 @@ def load() -> Config:
     data = os.environ.get("WIFILAB_DATA_DIR")
     return Config(
         host="127.0.0.1",
-        port=_int("WIFILAB_PORT", 8097, 1024, 65535),
+        port=_port(os.environ.get("WIFILAB_PORT", "")),
         data_dir=Path(data).expanduser() if data else _default_data_dir(),
         scanner=os.environ.get("WIFILAB_SCANNER", "auto").strip().lower() or "auto",
         scan_interval=_int("WIFILAB_SCAN_INTERVAL", 15, 5, 3600),

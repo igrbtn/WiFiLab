@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 const {snapPoint, segDist, outside, segLen, hitItem, r2} = await import("../../src/wifilab/static/js/plans.js");
 const {splitSeries, trend} = await import("../../src/wifilab/static/js/live.js");
 const {cmp} = await import("../../src/wifilab/static/js/lib.js");
-const {reportViews} = await import("../../src/wifilab/static/js/report.js");
+const {reportViews, reportArea} = await import("../../src/wifilab/static/js/report.js");
 
 assert.deepEqual(snapPoint({x: 1.234, y: 2.06}), {x: 1.2, y: 2.1});
 const items = [{kind: "wall", x1: 1.03, y1: 1.07, x2: 5, y2: 1.07}];
@@ -36,4 +36,9 @@ assert.deepEqual(v.map((x) => x.kind), ["rssi", "snr", "count", "overlap"]);
 const v2 = reportViews({aps: [{id: "a"}]}, "Corp");
 assert.deepEqual(v2.map((x) => x.kind), ["rssi", "rssi", "snr", "count", "overlap", "serving"]);
 assert.deepEqual(v2[1].target, {type: "ssid", value: "Corp"});
+const v3 = reportViews({aps: [{id: "a", name: "AP1", bssids: ["02:00:00:00:00:0A"]}, {id: "b", bssids: []}]}, "");
+assert.deepEqual(v3.map((x) => x.kind), ["rssi", "snr", "count", "overlap", "serving", "rssi"]);
+assert.ok(v3[5].target.bssids.has("02:00:00:00:00:0a") && v3[5].title.endsWith("AP1"));
+assert.deepEqual(reportArea({plan: null, points: [{x_m: 3.2, y_m: 1}]}), {wM: 6, lM: 3, items: []});
+assert.deepEqual(reportArea({plan: {width_m: 10, length_m: 5, items: []}}), {wM: 10, lM: 5, items: []});
 console.log("ok");

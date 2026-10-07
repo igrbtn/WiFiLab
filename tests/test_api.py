@@ -25,7 +25,8 @@ def test_info_and_live(client):
 
 def test_index_and_static(client):
     assert "WiFiLab" in client.get("/").text
-    assert client.get("/static/js/main.js").status_code == 200
+    js = client.get("/static/js/main.js")
+    assert js.status_code == 200 and js.headers["cache-control"] == "no-cache"
 
 
 def test_settings_persist(client, store):

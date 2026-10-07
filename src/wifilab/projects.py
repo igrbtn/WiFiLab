@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 import uuid
 
-from . import analysis, apmarks, oui, plans
+from . import analysis, apmarks, plans
 from .scanloop import enrich
 
 POINT_AP_KEYS = ("bssid", "ssid", "rssi", "noise", "channel", "band", "width", "security", "phy")
@@ -146,8 +146,8 @@ def issues(proj: dict, ssid: str | None = None, oui_extra=None) -> list[dict]:
     return sorted(out, key=lambda i: analysis.SEVERITY_ORDER[i["severity"]])
 
 
-def summary(proj: dict, ssid: str | None = None) -> dict:
-    inv = inventory(proj)
+def summary(proj: dict, ssid: str | None = None, oui_extra=None) -> dict:
+    inv = inventory(proj, oui_extra)
     pts = proj.get("points") or []
     vals = [analysis.point_best(p, ssid or None) for p in pts]
     heard = [v for v in vals if v is not None]
@@ -156,7 +156,7 @@ def summary(proj: dict, ssid: str | None = None) -> dict:
             "bands": {b: sum(1 for a in inv if a["band"] == b) for b in analysis.BANDS},
             "best_avg": round(sum(heard) / len(heard)) if heard else None,
             "weak_points": sum(1 for v in vals if v is None or v < analysis.FAIR),
-            "vendor_counts": _count(oui.vendor(a["bssid"]) or "unknown" for a in inv)}
+            "vendor_counts": _count(a.get("vendor") or "unknown" for a in inv)}
 
 
 def _count(it) -> dict:

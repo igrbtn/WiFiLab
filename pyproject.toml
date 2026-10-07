@@ -1,6 +1,6 @@
 [project]
 name = "wifilab"
-version = "0.1.0"
+version = "0.2.0"
 description = "WiFiLab: Wi-Fi scanner, survey heatmaps and reports for macOS (CoreWLAN), with a web UI"
 readme = "README.md"
 license = {text = "MIT"}
@@ -10,6 +10,7 @@ dependencies = [
     "fastapi==0.115.6",
     "uvicorn[standard]==0.34.0",
     "python-docx==1.1.2",
+    "pillow==11.3.0",
     "rumps==0.4.0; sys_platform == 'darwin'",
     "pyobjc-framework-CoreWLAN==12.2.2; sys_platform == 'darwin'",
     "pyobjc-framework-CoreLocation==12.2.2; sys_platform == 'darwin'",
@@ -17,7 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest==8.3.4", "ruff==0.8.4", "httpx==0.28.1"]
-build = ["pillow==11.3.0"]
+build = []
 
 [project.scripts]
 wifilab = "wifilab.cli:main"

@@ -337,7 +337,7 @@ export async function historyPage() {
 // ---------- Settings ----------
 
 export async function settingsPage() {
-  const [st, info] = await Promise.all([api("/api/settings"), api("/api/info")]);
+  const [st, info, db] = await Promise.all([api("/api/settings"), api("/api/info"), api("/api/oui")]);
   const iv = h("input", {type: "number", min: 5, max: 3600, value: st.interval, style: {width: "90px"}, "aria-label": "Scan interval, s"});
   const run = h("input", {type: "checkbox", checked: st.running, id: "run"});
   const save = h("button.b.primary", {type: "button", onclick: async () => {
@@ -352,6 +352,26 @@ export async function settingsPage() {
     toast(r.message || r.status, "info", 10000);
   }}, "Request Location Services");
   const kv = (k, v) => h("tr", h("th", k), h("td", v));
+  const ouiRows = h("tbody");
+  const showDb = (d) => ouiRows.replaceChildren(
+    kv("Entries", `${d.entries}${d.user_entries ? ` + ${d.user_entries} from oui.csv` : ""}`),
+    kv("Generated", d.generated || "unknown"),
+    kv("Source", d.source === "downloaded" ? `downloaded (${d.path})` : "bundled with the app"));
+  showDb(db);
+  const ouiMsg = h("span.small.muted");
+  const ouiBtn = h("button.b", {type: "button", onclick: async () => {
+    ouiBtn.disabled = true;
+    ouiMsg.textContent = "Downloading the IEEE registries...";
+    try {
+      const d = await api("/api/oui/update", {method: "POST", timeout: 180000});
+      showDb(d);
+      ouiMsg.textContent = `Updated: ${d.entries} prefixes.`;
+      toast("Vendor database updated", "ok");
+    } catch (e) {
+      ouiMsg.textContent = e.message;
+      toast(e.message, "err", 10000);
+    } finally { ouiBtn.disabled = false; }
+  }}, "Update vendor database");
   return {el: h("div.stack", h("h2", "Settings"),
     h("div.card", h("h3", "Background scanning"),
       h("div.row", h("label.row", "Scan every ", iv, " s"), h("label.row", {for: "run"}, run, "Scan in the background"), save),
@@ -360,8 +380,11 @@ export async function settingsPage() {
     h("div.card", h("h3", "About"), h("table.kvt",
       kv("Version", info.version), kv("Scanner", info.backend), kv("Data", info.data_dir),
       kv("Location Services", `${loc.status}${loc.authorized ? "" : " (SSIDs and BSSIDs are hidden by macOS)"}`),
-      kv("Last scan", fmtTime(info.state.last_ts))), loc.needed ? locBtn : null,
-    h("p.small.muted", "Vendor names come from a bundled subset of the IEEE OUI list. Put more as \"prefix,vendor\" lines into "
-      + "oui.csv in the data folder."))),
+      kv("Last scan", fmtTime(info.state.last_ts))), loc.needed ? locBtn : null),
+    h("div.card", h("h3", "Vendor database"), h("table.kvt", ouiRows), h("div.row", ouiBtn, ouiMsg),
+      h("p.small.muted", "Vendor names by MAC prefix from the public IEEE registries (MA-L, MA-M, MA-S). Updating downloads "
+        + "about 5 MB from standards-oui.ieee.org into the data folder; the copy bundled with the app stays as the fallback. "
+        + "Your own names go into oui.csv in the data folder as \"prefix,vendor\" lines and win over both. Randomized "
+        + "(locally administered) addresses are shown as \"Private (randomized)\"."))),
   };
 }

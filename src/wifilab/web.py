@@ -13,7 +13,7 @@ from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, analysis, config, fieldtab, location, plans, projects, report
+from . import __version__, analysis, config, fieldtab, heatmap, location, oui, plans, projects, report
 from .scanloop import ScanService, enrich
 from .scanner import Scanner, get_scanner
 from .store import Store
@@ -72,6 +72,14 @@ def create_app(cfg: config.Config | None = None, scanner: Scanner | None = None,
 
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
+    @app.middleware("http")
+    async def revalidate_static(request: Request, call_next):
+        # Same-name JS modules change between versions: make the browser revalidate (ETag) instead of guessing.
+        resp = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            resp.headers["Cache-Control"] = "no-cache"
+        return resp
+
     # ---------- info, settings, scanning ----------
 
     @app.get("/api/info")
@@ -95,6 +103,17 @@ def create_app(cfg: config.Config | None = None, scanner: Scanner | None = None,
             svc.set_running(bool(body["running"]))
             store.set_setting("running", svc.running)
         return get_settings()
+
+    @app.get("/api/oui")
+    def oui_info() -> dict:
+        return oui.info(cfg.data_dir)
+
+    @app.post("/api/oui/update")
+    def oui_update() -> dict:
+        try:
+            return oui.update(cfg.data_dir)
+        except (RuntimeError, OSError) as e:
+            raise HTTPException(502, f"Vendor database update failed: {e}. The previous database is still used.") from None
 
     @app.post("/api/scan")
     def scan_now() -> dict:
@@ -227,20 +246,26 @@ def create_app(cfg: config.Config | None = None, scanner: Scanner | None = None,
             x, y = projects.check_xy(p, body.get("x_m"), body.get("y_m"))
         except ValueError as e:
             raise HTTPException(422, str(e)) from None
-        res = svc.scan_now(position=(x, y))
+        res = svc.scan_fresh(position=(x, y))
         if not res["ok"]:
             raise HTTPException(409, res["error"] or "scan failed")
         if not res["aps"] and res.get("anonymous"):
             raise HTTPException(409, "The scan returned only hidden networks: allow Location Services for WiFiLab "
                                      "(see the banner) and measure again.")
         point = projects.point_from_scan(x, y, res, body.get("note", ""))
+        if res.get("stale"):
+            point["stale"] = True
         p = _project(pid)   # reread: the scan took seconds
         try:
             projects.add_point(p, point)
         except ValueError as e:
             raise HTTPException(422, str(e)) from None
         store.save_project(p)
-        return {"point": point, "points": len(p["points"])}
+        out = {"point": point, "points": len(p["points"])}
+        if point.get("stale"):
+            out["warning"] = ("macOS returned the same scan as for the previous point (the radio was busy or the scan "
+                              "came from the system cache). Wait a few seconds and measure this point again.")
+        return out
 
     @app.patch("/api/projects/{pid}/points/{point_id}")
     def point_patch(pid: str, point_id: str, body: dict = Body(...)) -> dict:
@@ -320,13 +345,24 @@ def create_app(cfg: config.Config | None = None, scanner: Scanner | None = None,
 
     # ---------- reports ----------
 
-    def _report(project: str | None, ssid: str | None, minutes: int) -> dict:
+    def _report_ctx(project: str | None, ssid: str | None, minutes: int) -> tuple[dict, dict | None]:
+        """Report data and the survey whose heatmaps it shows (live report: the latest survey with points)."""
         if project:
-            return report.project_report(_project(project), ssid, oui_extra)
+            p = _project(project)
+            return report.project_report(p, ssid, oui_extra), p
         since = time.time() - max(1, min(minutes, 60 * 24 * 365)) * 60
         inv = [enrich({**a, "rssi": a.get("rssi_last")}, oui_extra) for a in store.inventory(since)]
-        return report.report_data(inv, title="Live Wi-Fi environment", source="live",
+        data = report.report_data(inv, title="Live Wi-Fi environment", source="live",
                                   meta={"minutes": minutes, "scans": store.scan_count(since)})
+        latest = next((x for x in store.projects() if x["points"]), None)
+        p = store.project(latest["id"]) if latest else None
+        data["coverage"] = report.coverage_info(p)
+        if p and not ssid:
+            data["coverage_ssid"] = p.get("target_ssid") or ""
+        return data, p
+
+    def _report(project: str | None, ssid: str | None, minutes: int) -> dict:
+        return _report_ctx(project, ssid, minutes)[0]
 
     @app.get("/api/report")
     def report_json(project: str | None = None, ssid: str | None = None, minutes: int = 60) -> dict:
@@ -338,11 +374,31 @@ def create_app(cfg: config.Config | None = None, scanner: Scanner | None = None,
         return _download(report.inventory_csv(data["inventory"]), f"{_safe_name(data['title'], 'wifi')}-aps.csv",
                          "text/csv")
 
+    @app.get("/api/report.html")
+    def report_html(project: str | None = None, ssid: str | None = None, minutes: int = 60) -> Response:
+        data, p = _report_ctx(project, ssid, minutes)
+        return _download(report.html_report(data, p), f"{_safe_name(data['title'], 'wifi')}-report.html", "text/html")
+
+    @app.get("/api/projects/{pid}/heatmaps")
+    def project_heatmaps(pid: str, ssid: str = "") -> dict:
+        p = _project(pid)
+        return {"views": [{"index": i, "kind": v["kind"], "title": v["title"]}
+                          for i, v in enumerate(heatmap.report_views(p, ssid or p.get("target_ssid") or ""))]}
+
+    @app.get("/api/projects/{pid}/heatmap.png")
+    def project_heatmap_png(pid: str, view: int = 0, ssid: str = "", width: int = 1400) -> Response:
+        p = _project(pid)
+        views = heatmap.report_views(p, ssid or p.get("target_ssid") or "")
+        if not 0 <= view < len(views):
+            raise HTTPException(404, "no such heatmap view")
+        png = heatmap.render_png(p, views[view], max(400, min(width, 3000)))
+        return Response(png, media_type="image/png", headers={"Cache-Control": "no-store"})
+
     @app.post("/api/report.docx")
     def report_docx(body: dict = Body(...)) -> Response:
-        data = _report(body.get("project"), body.get("ssid"), int(body.get("minutes") or 60))
-        images = [im for im in body.get("images") or [] if isinstance(im, dict)][:12]
-        blob = report.docx_report(data, images)
+        data, p = _report_ctx(body.get("project"), body.get("ssid"), int(body.get("minutes") or 60))
+        images = [im for im in body.get("images") or [] if isinstance(im, dict)][:16]
+        blob = report.docx_report(data, images, p)
         return _download(blob, f"{_safe_name(data['title'], 'wifi')}-report.docx",
                          "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
