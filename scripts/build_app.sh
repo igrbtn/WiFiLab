@@ -6,7 +6,6 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VENV="${WIFILAB_VENV:-$HOME/.venvs/wifilab}"
-PYTHON="${WIFILAB_PYTHON:-python3}"
 # Build outside ~/Documents: iCloud xattrs and dataless files break codesign there.
 DIST="${TMPDIR:-/tmp}/wifilab-dist"
 APP="$DIST/WiFiLab.app"
@@ -17,9 +16,52 @@ DEST="${WIFILAB_APP_DIR:-/Applications}"
 # plist change, or users get asked again.
 LAUNCHER_VERSION="0.1.0"
 
-if [ ! -x "$VENV/bin/python" ]; then
-  echo "== creating venv $VENV =="
-  "$PYTHON" -m venv "$VENV"
+MIN_MINOR=11   # Python 3.11+ (pyproject requires-python)
+
+py_ok() {   # $1 = interpreter; true when it runs and is 3.MIN_MINOR or newer
+  [ -n "$1" ] && "$1" -c "import sys; sys.exit(0 if sys.version_info >= (3, $MIN_MINOR) else 1)" 2>/dev/null
+}
+
+# The macOS system python3 (/usr/bin/python3, Xcode tools) is 3.9: look for a newer one first.
+find_python() {
+  local c
+  for c in "${WIFILAB_PYTHON:-}" python3.13 python3.12 python3.11 \
+           /opt/homebrew/bin/python3.13 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.11 \
+           /usr/local/bin/python3.13 /usr/local/bin/python3.12 /usr/local/bin/python3.11 \
+           /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 \
+           /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 \
+           /Library/Frameworks/Python.framework/Versions/3.11/bin/python3 \
+           python3; do
+    if py_ok "$c"; then command -v "$c"; return 0; fi
+  done
+  # uv can provide a Python without Homebrew.
+  if command -v uv >/dev/null 2>&1; then
+    uv python install 3.12 >/dev/null 2>&1 || true
+    c="$(uv python find 3.12 2>/dev/null || true)"
+    if py_ok "$c"; then echo "$c"; return 0; fi
+  fi
+  return 1
+}
+
+# A venv left by an older Python (e.g. a first run with the system 3.9) is rebuilt.
+if [ -x "$VENV/bin/python" ] && ! py_ok "$VENV/bin/python"; then
+  echo "== $VENV uses $("$VENV/bin/python" -V 2>&1), WiFiLab needs 3.$MIN_MINOR+: recreating it =="
+  REBUILD_VENV=1
+fi
+if [ ! -x "$VENV/bin/python" ] || [ -n "${REBUILD_VENV:-}" ]; then
+  if ! PYTHON="$(find_python)"; then
+    cat >&2 <<MSG
+WiFiLab needs Python 3.$MIN_MINOR or newer; found only $(python3 -V 2>&1) (the macOS system Python is 3.9).
+Install one of these, then run this script again:
+  brew install python@3.12
+  or the macOS installer from https://www.python.org/downloads/macos/
+  or uv (https://docs.astral.sh/uv/), then this script fetches Python 3.12 itself
+To use a specific interpreter: WIFILAB_PYTHON=/path/to/python3.12 $0
+MSG
+    exit 1
+  fi
+  echo "== creating venv $VENV with $("$PYTHON" -V 2>&1) ($PYTHON) =="
+  "$PYTHON" -m venv --clear "$VENV"
 fi
 # Not an editable install: the bundle must not depend on the source tree.
 "$VENV/bin/pip" install -q "$ROOT[build]"

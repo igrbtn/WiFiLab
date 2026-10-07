@@ -1,6 +1,6 @@
 [project]
 name = "wifilab"
-version = "0.2.0"
+version = "0.2.1"
 description = "WiFiLab: Wi-Fi scanner, survey heatmaps and reports for macOS (CoreWLAN), with a web UI"
 readme = "README.md"
 license = {text = "MIT"}

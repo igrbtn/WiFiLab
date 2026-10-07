@@ -60,6 +60,11 @@ is made up.
 ## Requirements
 
 - macOS 13 or newer (developed on macOS 26/27, Apple Silicon); Python 3.11+ (3.12 recommended).
+  The Python that ships with macOS (`/usr/bin/python3`) is 3.9 and is not enough. `build_app.sh` looks for a
+  newer one (Homebrew, python.org installer, `python3.1x` on PATH, or [uv](https://docs.astral.sh/uv/), which
+  it uses to fetch 3.12) and rebuilds a venv left by an older Python. If none is found, install one:
+  `brew install python@3.12` or the installer from https://www.python.org/downloads/macos/ , or point the
+  script at it: `WIFILAB_PYTHON=/path/to/python3.12 ./scripts/build_app.sh`.
 - Xcode Command Line Tools (`clang`, `codesign`, `iconutil`) to build the app bundle.
 - Node.js only to run the JavaScript unit tests.
 
@@ -81,7 +86,7 @@ Log: `~/Library/Logs/WiFiLab.log`.
 From source, without the bundle:
 
 ```bash
-python3 -m venv .venv && . .venv/bin/activate
+python3.12 -m venv .venv && . .venv/bin/activate   # any Python 3.11+, not the system 3.9
 pip install -e ".[dev]"            # or: pip install ".[dev]"
 wifilab web                        # UI only, on a random free port (printed in the log)
 wifilab web --port 8197            # or a fixed port (also WIFILAB_PORT)
