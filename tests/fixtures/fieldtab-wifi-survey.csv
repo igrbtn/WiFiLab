@@ -1,0 +1,4 @@
+bssid,ssid,hidden,channel,width,second,auth,cipher,group_cipher,phy,wps,country,rssi_last,rssi_min,rssi_avg,rssi_max,seen_count,first_seen,last_seen
+02:00:5e:10:00:01,Example-Corp,false,1,20,,WPA2-ENT,CCMP,CCMP,ax,false,XX,-52,-60,-55,-49,12,1767225600,1767225720
+02:00:5e:10:00:02,,true,6,40,below,WPA2,CCMP,CCMP,n,false,XX,-70,-74,-71,-66,10,1767225600,1767225720
+02:00:5e:20:00:01,Example-Open,false,11,20,,OPEN,NONE,NONE,n,true,XX,-80,-85,-81,-77,4,1767225630,1767225700

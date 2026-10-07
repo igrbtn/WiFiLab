@@ -1,0 +1,100 @@
+{
+ "kind": "wifi",
+ "v": 2,
+ "band": "2.4GHz",
+ "seen": {
+  "02:00:5e:10:00:01": {
+   "bssid": "02:00:5e:10:00:01",
+   "ssid": "Example-Corp",
+   "hidden": false,
+   "channel": 1,
+   "width": 20,
+   "second": "",
+   "auth": "WPA2-ENT",
+   "phy": "ax",
+   "rssi": -52,
+   "rssi_min": -60,
+   "rssi_max": -49,
+   "rssi_sum": -660,
+   "count": 12,
+   "first": 1767225600,
+   "last": 1767225720
+  },
+  "02:00:5e:10:00:02": {
+   "bssid": "02:00:5e:10:00:02",
+   "ssid": "",
+   "hidden": true,
+   "channel": 6,
+   "width": 40,
+   "second": "below",
+   "auth": "WPA2",
+   "phy": "n",
+   "rssi": -70,
+   "rssi_min": -74,
+   "rssi_max": -66,
+   "rssi_sum": -710,
+   "count": 10,
+   "first": 1767225600,
+   "last": 1767225720
+  },
+  "02:00:5e:20:00:01": {
+   "bssid": "02:00:5e:20:00:01",
+   "ssid": "Example-Open",
+   "hidden": false,
+   "channel": 11,
+   "width": 20,
+   "second": "",
+   "auth": "OPEN",
+   "phy": "n",
+   "rssi": -80,
+   "rssi_min": -85,
+   "rssi_max": -77,
+   "rssi_sum": -324,
+   "count": 4,
+   "first": 1767225630,
+   "last": 1767225700
+  }
+ },
+ "scans": 12,
+ "started": 1767225600,
+ "note": "Example doc",
+ "map_target": "Example-Corp",
+ "map": {
+  "cell_m": 0.5,
+  "width_m": 5,
+  "length_m": 3,
+  "cols": 10,
+  "rows": 6,
+  "samples": {
+   "1": {
+    "ts": 1767225600,
+    "aps": {
+     "02:00:5e:10:00:01": -48
+    }
+   },
+   "23": {
+    "ts": 1767225630,
+    "aps": {
+     "02:00:5e:10:00:01": -70,
+     "02:00:5e:20:00:01": -83
+    }
+   }
+  },
+  "plan": [
+   {
+    "k": "wall",
+    "x1": 0,
+    "y1": 0,
+    "x2": 5,
+    "y2": 0
+   },
+   {
+    "k": "window",
+    "x1": 1,
+    "y1": 3,
+    "x2": 2,
+    "y2": 3
+   }
+  ]
+ }
+}

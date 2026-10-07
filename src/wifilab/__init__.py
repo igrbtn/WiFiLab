@@ -1,0 +1,3 @@
+"""WiFiLab: Wi-Fi survey and reporting for macOS."""
+
+__version__ = "0.1.0"

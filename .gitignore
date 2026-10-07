@@ -1,0 +1,22 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+node_modules/
+.DS_Store
+# Scan history and survey data never belong in the repo
+/data/
+*.sqlite3
+*.sqlite3-*
+*.db
+*.docx
+.claude/settings.local.json
+.claude/launch.json

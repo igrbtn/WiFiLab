@@ -1,0 +1,93 @@
+{
+ "kind": "wifi_map",
+ "band": "2.4GHz",
+ "device": "tab-test",
+ "survey": "example",
+ "note": "Example room",
+ "cell_m": 0.5,
+ "width_m": 6,
+ "length_m": 4,
+ "cols": 12,
+ "rows": 8,
+ "points": [
+  {
+   "col": 1,
+   "row": 1,
+   "x_m": 0.25,
+   "y_m": 0.25,
+   "ts": 1767225600,
+   "aps": [
+    {
+     "bssid": "02:00:5e:10:00:01",
+     "ssid": "Example-Corp",
+     "rssi": -50,
+     "channel": 1
+    },
+    {
+     "bssid": "02:00:5e:20:00:01",
+     "ssid": "Example-Open",
+     "rssi": -70,
+     "channel": 11
+    }
+   ]
+  },
+  {
+   "col": 5,
+   "row": 3,
+   "x_m": 2.25,
+   "y_m": 1.25,
+   "ts": 1767225630,
+   "aps": [
+    {
+     "bssid": "02:00:5e:10:00:01",
+     "ssid": "Example-Corp",
+     "rssi": -61,
+     "channel": 1
+    },
+    {
+     "bssid": "02:00:5e:20:00:01",
+     "ssid": "Example-Open",
+     "rssi": -81,
+     "channel": 11
+    }
+   ]
+  },
+  {
+   "col": 10,
+   "row": 6,
+   "x_m": 4.75,
+   "y_m": 2.75,
+   "ts": 1767225660,
+   "aps": [
+    {
+     "bssid": "02:00:5e:10:00:01",
+     "ssid": "Example-Corp",
+     "rssi": -79,
+     "channel": 1
+    },
+    {
+     "bssid": "02:00:5e:20:00:01",
+     "ssid": "Example-Open",
+     "rssi": -99,
+     "channel": 11
+    }
+   ]
+  }
+ ],
+ "plan": [
+  {
+   "kind": "wall",
+   "x1_m": 0,
+   "y1_m": 0,
+   "x2_m": 6,
+   "y2_m": 0
+  },
+  {
+   "kind": "door",
+   "x1_m": 2,
+   "y1_m": 4,
+   "x2_m": 2.9,
+   "y2_m": 4
+  }
+ ]
+}
