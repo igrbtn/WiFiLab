@@ -36,7 +36,39 @@ wall under it. A beam is a segment along its axis.
 
 ## Making a plan from a photo
 
-Floor plan > Import > Copy LLM prompt copies the prompt below. Give it to any vision LLM together with a photo or
+The quickest way: Surveys > "Floor plan from a photo".
+
+1. Photograph the plan (the evacuation plan on the wall, a drawing, a scan): straight on, the whole plan in the
+   frame, no glare.
+2. Enter the real sizes you know, one per line. One long measured length (a corridor, a side of the building) sets
+   the scale for the whole drawing; two in different directions are better. If you know the overall size, enter
+   width and length too.
+3. Copy prompt, open a new chat in Claude, ChatGPT, Gemini or any other vision LLM, attach the photo, paste.
+4. Paste the whole answer back into WiFiLab and press "Create survey from this plan". Compare the lines with the
+   photo in Floor plan and fix them by hand where needed (the photo can be the plan background).
+
+Example of a generated prompt for an evacuation plan with a 31 m corridor (the base prompt is quoted below):
+
+```
+<base prompt>
+
+The image is a photo or a scan: correct perspective and rotation first, so walls are straight and parallel.
+Ignore furniture, people, text blocks, legends, evacuation arrows, fire equipment symbols and stair hatching;
+draw stair and shaft outlines as walls. Outer walls must form a closed outline.
+
+Known real sizes (use them to set the scale of the whole drawing; they win over anything you infer, and every
+other size must stay consistent with them):
+- Main corridor along the long side: 31 m
+- Room 204 (top right): 6.2 m wide
+- Doors are 0.9 m
+
+Use "Floor 3" as the name.
+```
+
+If the answer is rejected, WiFiLab lists what is wrong: send that list back to the same chat ("fix exactly these
+points") and paste the new answer.
+
+Floor plan > Import > Copy LLM prompt copies the base prompt below. Give it to any vision LLM together with a photo or
 scan of the plan, paste the answer into the Import box and press Load: WiFiLab finds the JSON object in the answer
 (bare, fenced or surrounded by text), validates it and shows readable errors.
 

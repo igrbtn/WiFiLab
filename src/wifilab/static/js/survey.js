@@ -1,6 +1,6 @@
 // Surveys: project list and import; the survey workspace (measure on the plan, heatmaps, placed APs, plan editor,
 // AP inventory).
-import {h, api, enc, toast, table, empty, fmtTime, fmtM, download, badge} from "./lib.js";
+import {h, api, enc, toast, table, empty, fmtTime, fmtM, download, badge, copyText} from "./lib.js";
 import {VIEWS, buildScene, engGeom, renderEng, toMetres, apGroups, groupLabel, shortMac, walkOrder, AP_R, apColor} from "./heat.js";
 import {planEditor} from "./plans.js";
 import {apColumns} from "./live.js";
@@ -44,7 +44,72 @@ export async function surveysPage() {
     h("div.card", h("div.row", name, create), h("div.row", {style: {marginTop: "8px"}}, h("span.small", "Import: "), file),
       h("p.small.muted", "Import accepts WiFiLab project exports, FieldTab tablet Wi-Fi exports (wifi-survey JSON/CSV, wifi-map JSON, "
         + "session documents) and fieldtab.plan/1 floor plans.")),
+    photoPlanCard(name, !list.length),
     list.length ? table(cols, list, {sort: {key: "updated", dir: -1}}) : empty("No surveys yet: create one, draw or import the floor plan, then click on the plan where you stand to measure."))};
+}
+
+// ---------- floor plan from a photo, through any vision LLM ----------
+
+const PHOTO_EXAMPLE = "Main corridor along the long side: 31 m\nRoom 204 (top right): 6.2 m wide\nDoors are 0.9 m";
+
+export function photoPromptQuery(f) {
+  const q = new URLSearchParams();
+  for (const k of ["known", "notes", "name"]) if ((f[k] || "").trim()) q.set(k, f[k].trim());
+  const w = parseFloat(f.width_m), l = parseFloat(f.length_m);
+  if (w > 0 && l > 0) { q.set("width_m", String(w)); q.set("length_m", String(l)); }
+  return q.toString();
+}
+
+function photoPlanCard(nameIn, open = false) {
+  const known = h("textarea", {rows: 3, style: {width: "100%", boxSizing: "border-box"}, placeholder: PHOTO_EXAMPLE, "aria-label": "Known real sizes"});
+  const wIn = h("input", {type: "number", min: 0.5, max: 100, step: 0.1, placeholder: "optional", style: {width: "90px"}, "aria-label": "Overall width, m"});
+  const lIn = h("input", {type: "number", min: 0.5, max: 100, step: 0.1, placeholder: "optional", style: {width: "90px"}, "aria-label": "Overall length, m"});
+  const notes = h("input", {type: "text", maxlength: 300, placeholder: "e.g. evacuation plan, ignore the left wing", style: {flex: "1"}, "aria-label": "Notes"});
+  const preview = h("pre.small", {style: {whiteSpace: "pre-wrap", maxHeight: "220px", overflow: "auto"}});
+  const answer = h("textarea", {rows: 6, style: {width: "100%", boxSizing: "border-box", fontFamily: "monospace"}, placeholder: "Paste the LLM answer here (JSON, with or without ``` fences or text around it)", "aria-label": "LLM answer"});
+  const status = h("div.small");
+  const form = () => ({known: known.value, width_m: wIn.value, length_m: lIn.value, notes: notes.value, name: nameIn.value});
+  const prompt = async () => (await api(`/api/plans/prompt?${photoPromptQuery(form())}`)).prompt;
+  let timer = null;
+  const refresh = () => { clearTimeout(timer); timer = setTimeout(async () => { preview.textContent = await prompt(); }, 250); };
+  for (const el of [known, wIn, lIn, notes, nameIn]) el.addEventListener("input", refresh);
+  refresh();
+  const copy = h("button.b.primary", {type: "button", onclick: async () => {
+    const text = await prompt();
+    preview.textContent = text;
+    if (await copyText(text)) toast("Prompt copied: paste it into the LLM chat together with the photo", "ok", 6000);
+    else toast("Clipboard blocked: select the prompt in the preview and copy it", "info", 6000);
+  }}, "Copy prompt");
+  const createBtn = h("button.b.primary", {type: "button", onclick: async () => {
+    status.textContent = "";
+    if (!answer.value.trim()) { status.textContent = "Paste the LLM answer first."; status.className = "small warn"; return; }
+    let plan;
+    try {
+      plan = (await api("/api/plans/validate", {body: answer.value})).plan;
+    } catch (e) {
+      status.textContent = "The answer is not a usable plan: " + e.message + "\nAsk the LLM to fix exactly these points and paste the new answer.";
+      status.className = "small err";
+      status.style.whiteSpace = "pre-wrap";
+      return;
+    }
+    const p = await api("/api/projects", {json: {name: nameIn.value || plan.name || "Survey from a photo", plan}});
+    toast(`Survey created: ${fmtM(plan.width_m)} x ${fmtM(plan.length_m)} m, ${plan.items.length} lines. Check it against the photo.`, "ok", 7000);
+    location.hash = `#/survey/${enc(p.id)}/plan`;
+  }}, "Create survey from this plan");
+  return h("details.card", {open},
+    h("summary", h("b", "Floor plan from a photo (Claude, ChatGPT, Gemini or any vision LLM)")),
+    h("ol.small",
+      h("li", "Take a photo of the floor plan (evacuation plan on the wall, a drawing, a scan). Shoot straight on, the whole plan in the frame, no glare."),
+      h("li", "Write the real sizes you know below: at least one long one (a corridor, the building side). One measured length sets the scale for everything; two in different directions are better. A laser meter or the dimension lines on the drawing are fine."),
+      h("li", "Copy prompt, open a new chat in the LLM, attach the photo and paste the prompt."),
+      h("li", "Copy the whole answer, paste it below and Create survey. Then compare the lines with the photo in Floor plan and fix walls by hand if needed (you can also set the photo as the plan background).")),
+    h("div.small", {style: {marginTop: "8px"}}, "Known real sizes, one per line"), known,
+    h("div.row", {style: {marginTop: "6px"}}, h("label.row.small", "Whole plan width, m ", wIn), h("label.row.small", "length, m ", lIn), notes),
+    h("p.small.muted", "The survey name above is used as the plan name."),
+    h("div.row", copy),
+    h("details", h("summary.small", "Prompt preview"), preview),
+    h("div.small", {style: {marginTop: "8px"}}, "LLM answer"), answer,
+    h("div.row", createBtn), status);
 }
 
 // ---------- workspace ----------

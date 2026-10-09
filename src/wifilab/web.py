@@ -168,8 +168,11 @@ def create_app(cfg: config.Config | None = None, scanner: Scanner | None = None,
     # ---------- plans ----------
 
     @app.get("/api/plans/prompt")
-    def plans_prompt() -> dict:
-        return {"prompt": plans.PROMPT}
+    def plans_prompt(known: str = "", width_m: float | None = None, length_m: float | None = None,
+                     notes: str = "", name: str = "") -> dict:
+        if not (known or width_m or length_m or notes or name):
+            return {"prompt": plans.PROMPT}
+        return {"prompt": plans.build_prompt(known, width_m, length_m, notes, name)}
 
     @app.post("/api/plans/validate")
     async def plans_validate(request: Request):

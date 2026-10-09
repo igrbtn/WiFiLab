@@ -175,3 +175,27 @@ def test_project_helpers():
 
 def test_get_scanner_fallback():
     assert get_scanner("fake").backend == "fake"
+
+
+def test_photo_plan_prompt(client):
+    plain = client.get("/api/plans/prompt").json()["prompt"]
+    assert plain.startswith("You convert a floor plan image")
+    r = client.get("/api/plans/prompt", params={"known": "Corridor along the long side: 31 m\n\n- Door 0.9 m",
+                                                 "width_m": 16.6, "length_m": 31, "name": "Floor 3", "notes": "evacuation plan"}).json()
+    p = r["prompt"]
+    assert p.startswith(plain.rstrip())
+    assert "- Corridor along the long side: 31 m\n- Door 0.9 m" in p
+    assert "16.6 m wide (x) and 31 m long (y)" in p
+    assert 'Use "Floor 3" as the name.' in p and "- evacuation plan" in p
+    assert "Ignore furniture" in p
+    # out-of-range size is dropped, control characters never reach the prompt
+    p = client.get("/api/plans/prompt", params={"known": "a\x1bb 5 m", "width_m": 500, "length_m": 3}).json()["prompt"]
+    assert "\x1b" not in p and "500" not in p and "- ab 5 m" in p
+
+
+def test_project_from_llm_answer(client):
+    answer = 'Here it is:\n```json\n{"format": "fieldtab.plan/1", "name": "F3", "width_m": 10, "length_m": 31,' \
+             ' "items": [{"kind": "wall", "x1": 0, "y1": 0, "x2": 10, "y2": 0}]}\n```'
+    plan = client.post("/api/plans/validate", content=answer).json()["plan"]
+    p = client.post("/api/projects", json={"name": "From photo", "plan": plan}).json()
+    assert p["plan"]["length_m"] == 31 and len(p["plan"]["items"]) == 1

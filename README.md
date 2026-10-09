@@ -121,6 +121,10 @@ The app bundle is signed ad hoc. Rebuilding it with a different launcher version
 1. Surveys > New survey, then Floor plan: set width and length, draw walls, doors and windows, or import a plan
    (JSON, a FieldTab plan, or an LLM answer made from a photo with the provided prompt). Optionally add a background
    image.
+   No drawing at hand? Surveys > "Floor plan from a photo": photograph the evacuation plan, enter one or two real
+   lengths you know (for example "corridor along the long side: 31 m"), copy the generated prompt into Claude,
+   ChatGPT or Gemini with the photo, paste the answer back and create the survey. Details and an example prompt:
+   [docs/PLAN_FORMAT.md](docs/PLAN_FORMAT.md#making-a-plan-from-a-photo).
 2. Measure & heatmaps: stand at a spot, click the same spot on the plan. The Mac scans (a few seconds) and the
    point appears. Repeat in a walking pattern, roughly every 2-4 m.
 3. Place AP: click where an access point hangs and pick the measured radio it is. This enables the serving AP and

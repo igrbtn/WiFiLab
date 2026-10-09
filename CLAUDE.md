@@ -59,5 +59,5 @@ pytest (`tests/`, fake scanner + `:memory:` store), node-тесты чистых
 
 ## Versioning
 
-`VERSION` = `pyproject.toml` = `wifilab.__version__` (сейчас 0.2.1), semver. `LAUNCHER_VERSION` в
+`VERSION` = `pyproject.toml` = `wifilab.__version__` (сейчас 0.3.0), semver. `LAUNCHER_VERSION` в
 `scripts/build_app.sh` менять только при изменении launcher.c/plist (иначе macOS заново спросит Location).

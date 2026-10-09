@@ -26,6 +26,42 @@ width of the opening on the wall line. A beam is a segment along its axis. Round
 width_m and length_m are the overall size of the bounding box. Keep every coordinate inside it.
 """
 
+# Added after PROMPT when the user knows some real sizes: a vision LLM guesses the scale badly from a photo, one
+# measured length (a corridor, a room) fixes it for the whole drawing.
+_KNOWN_HEAD = """\
+Known real sizes (use them to set the scale of the whole drawing; they win over anything you infer, and every
+other size must stay consistent with them):"""
+
+_PHOTO_NOTES = """\
+The image is a photo or a scan: correct perspective and rotation first, so walls are straight and parallel.
+Ignore furniture, people, text blocks, legends, evacuation arrows, fire equipment symbols and stair hatching;
+draw stair and shaft outlines as walls. Outer walls must form a closed outline."""
+
+
+def _clean(text, limit: int) -> str:
+    """User text for the prompt: printable, one paragraph per line, bounded."""
+    text = "".join(ch for ch in str(text or "") if ch == "\n" or ch.isprintable())
+    lines = [ln.strip(" -*\t") for ln in text.splitlines()]
+    return "\n".join(f"- {ln}" for ln in lines if ln)[:limit]
+
+
+def build_prompt(known: str = "", width_m=None, length_m=None, notes: str = "", name: str = "") -> str:
+    """PROMPT plus what the user knows about this plan: measured lengths, the overall size, a name, notes."""
+    parts = [PROMPT.rstrip(), _PHOTO_NOTES]
+    sizes = _clean(known, 1500)
+    w, ln = _number(width_m), _number(length_m)
+    if w and ln and MIN_M <= w <= MAX_M and MIN_M <= ln <= MAX_M:
+        sizes = (sizes + "\n" if sizes else "") + f"- The whole plan is {_r(w)} m wide (x) and {_r(ln)} m long (y): use these as width_m and length_m."
+    if sizes:
+        parts.append(_KNOWN_HEAD + "\n" + sizes)
+    name = _clean(name, MAX_NAME).lstrip("- ")
+    if name:
+        parts.append(f'Use "{name}" as the name.')
+    extra = _clean(notes, 1000)
+    if extra:
+        parts.append("Notes about this plan:\n" + extra)
+    return "\n\n".join(parts) + "\n"
+
 
 # ---------- validation ----------
 
